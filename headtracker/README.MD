@@ -1,4 +1,62 @@
 
+#video
+
+
+# Arduino IDE
+https://amperka.ru/page/arduino-ide
+https://github.com/arduino/arduino-ide/releases/
+
+```
+$ wget https://github.com/arduino/arduino-ide/releases/download/2.0.0/arduino-ide_2.0.0_Linux_64bit.zip
+$ unzip ./arduino-ide_2.0.0_Linux_64bit.zip
+```
+
+
+avrdude: ser_open(): can't open device "/dev/ttyACM0": Permission denied
+Failed uploading: uploading error: exit status 1
+```
+$ sudo usermod -a -G dialout $USER
+````
+After this, reboot your device and open Arduino IDE.
+
+# Подключение Акселерометра и Магнитометра (via I2C - SCL/SDA )
+10-ти осевой модуль датчика отслеживания CJMCU MPU9250 10DOF
+
+{
+    https://www.youtube.com/watch?v=gGNUtTtGCj0  (1:41:??) - Подключение акселерометра
+    last = 1:47:??;
+}
+
+Либа на гитхабе для этого чипа: (https://github.com/hideakitai/MPU9250.git)[https://github.com/hideakitai/MPU9250]
+
+Ещё либа на гитхабе для этого чипа: (https://github.com/kriswiner/MPU9250.git)[https://github.com/kriswiner/MPU9250/]
+
+https://compacttool.ru/10-ti-osevoj-modul-datchika-otslezhivaniya-cjmcu-mpu9250-10dof
+Here is a dedicated library for MPU9250 https://www.arduino.cc/reference/en/libraries/mpu9250/
+
+MPU9250 {
+    The MPU-9250 is comprised of the following key blocks and functions:
+    Three-axis MEMS rate gyroscope sensor with 16-bit ADCs and signal conditioning
+    Three-axis MEMS accelerometer sensor with 16-bit ADCs and signal conditioning
+    Three-axis MEMS magnetometer sensor with 16-bit ADCs and signal conditioning
+    Digital Motion Processor (DMP) engine
+    Primary I 2 C and SPI serial communications interfaces
+    Auxiliary I 2 C serial interface for 3 rd party sensors
+    Clocking
+    Sensor Data Registers
+    FIFO: 512-byte FIFO register that is accessible via the Serial Interface.
+    Interrupts
+    Digital-Output Temperature Sensor: An on-chip temperature sensor and ADC are used to measure the MPU-9250 die temperature. The readings from the ADC can be read from the FIFO or the Sensor Data registers.
+    Gyroscope, Accelerometer and Magnetometer Self-test: [r13, r16]
+    Bias and LDO: The bias and LDO section generates the internal supply and the reference voltages and currents required by the MPU-9250.
+    Charge Pump: An on-chip charge pump generates the high voltage required for the MEMS oscillators.
+}
+
+
+
+
+
+
 
 
 
