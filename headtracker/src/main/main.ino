@@ -7,20 +7,22 @@ uint8_t counter = 0;
 Lights lights;
 MPU9250 mpu;
 
-void setup() {
+void setup()
+{
     Serial.begin(9600);
     Wire.begin();
     lights.setup(); 
 }
 
-void loop() {
+void loop()
+{
     lights.shift();
 
     static bool initMpu = true;
     if(initMpu)
     {
         //initMpu = false;
-        Serial.println("AAAAAAAAAAAAAAAAAAAAAA.0");
+        Serial.println("AAAAAAAAAAAAAAAAAAAAAA.4");
         mpu.setup();
     }
 
@@ -33,7 +35,7 @@ void loop() {
         ++counter;
     }
 
-    delay(1000);
+    delay(3000);
 
     //Types::printSizeof();
 }

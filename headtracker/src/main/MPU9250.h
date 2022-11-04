@@ -4,7 +4,8 @@
 #include <Wire.h>
 
 //Magnetometer Registers
-// #define AK8963_ADDRESS   0x0C
+//#define AK8963_ADDRESS   0x0C
+//#define AK8963_ADDRESS   0x0C<<1
 #define AK8963_WHO_AM_I  0x00 // should return 0x48
 #define AK8963_INFO      0x01
 #define AK8963_ST1       0x02  // data ready status bit 0
@@ -193,6 +194,37 @@ public:
         }  // Put read results in the Rx buffer
     }
 
+    void writeByte(uint8_t address, uint8_t subAddress, uint8_t data) {
+        _wire.beginTransmission(address);    // Initialize the Tx buffer
+        _wire.write(subAddress);             // Put slave register address in Tx buffer
+        _wire.write(data);                   // Put data in Tx buffer
+        _err = _wire.endTransmission();  // Send the Tx buffer
+        if (_err) printError();
+    }
+
+    uint8_t readByte(uint8_t address, uint8_t subAddress) {
+        uint8_t data = 0;                         // `data` will store the register data
+        _wire.beginTransmission(address);         // Initialize the Tx buffer
+        _wire.write(subAddress);                  // Put slave register address in Tx buffer
+        _err = _wire.endTransmission(false);  // Send the Tx buffer, but send a restart to keep connection alive
+        if (_err) printError();
+        _wire.requestFrom(address, (size_t)1);       // Read one byte from slave register address
+        if (_wire.available()) data = _wire.read();  // Fill Rx buffer with result
+        return data;                                 // Return data read from slave register
+    }
+
+    void readBytes(uint8_t address, uint8_t subAddress, uint8_t count, uint8_t* dest) {
+        _wire.beginTransmission(address);         // Initialize the Tx buffer
+        _wire.write(subAddress);                  // Put slave register address in Tx buffer
+        _err = _wire.endTransmission(false);  // Send the Tx buffer, but send a restart to keep connection alive
+        if (_err) printError();
+        uint8_t i = 0;
+        _wire.requestFrom(address, count);  // Read bytes from slave register address
+        while (_wire.available()) {
+            dest[i++] = _wire.read();
+        }  // Put read results in the Rx buffer
+    }
+
     void printError() {
         if (_err == 7) return;  // to avoid stickbreaker-i2c branch's error code
         Serial.print("I2C ERROR CODE : ");
@@ -240,11 +272,10 @@ public:
 
     MPU9250(uint8_t address = MPU9250_DEFAULT_ADDRESS)
         : _bus(address)
-        , _verbose(true)
-        , _hasConnected(false)
         , _t(_bus)
-        , _a(_bus)
         , _g(_bus)
+        , _a(_bus)
+//        , _m(_bus)
     {
     }
 
@@ -260,42 +291,8 @@ public:
         }
 
         wait();
-        init();
-    }
+        //_m.wait();
 
-    void wait()
-    {
-        while(!isConnected()) {
-            if (_verbose) {
-                uint8_t counter = 0;
-                char buffer[50];
-                sprintf(buffer, "[%d] MPU9250::wait(); awaitng for MPU...", counter);
-                Serial.println(buffer);
-                delay(1000);
-            }            
-        }
-    }
- 
-    bool isConnected() {
-        byte c = _bus.readByte(WHO_AM_I_MPU9250);
-        bool b = (c == MPU9250_WHOAMI_DEFAULT_VALUE);
-        //b |= (c == MPU9255_WHOAMI_DEFAULT_VALUE);
-        //b |= (c == MPU6500_WHOAMI_DEFAULT_VALUE);
-        if (_verbose) {
-            if (b) {
-                Serial.print("MPU9250::isConnected(); MPU is connected; WHO_AM_I_MPU9250=");
-                Serial.println(c, HEX);
-            } else {
-                Serial.print("MPU9250::isConnected(); MPU is NOT connected; WHO_AM_I_MPU9250=");
-                Serial.println(c, HEX);                
-            }
-        }
-       return b;
-    }
-
-    void init()
-    {
-        Serial.println("MPU9250::init()");
 
         //acc_resolution = get_acc_resolution(setinting.accel_fs_sel);
         //gyro_resolution = get_gyro_resolution(setting.gyro_fs_sel);
@@ -307,52 +304,16 @@ public:
 
          // wake up device
         _bus.writeByte(PWR_MGMT_1, 0x00);  // Clear sleep mode bit (6), enable all sensors
-        delay(200);                             // Wait for all registers to reset
+        delay(200); // Wait for all registers to reset
 
         // get stable time source
         _bus.writeByte(PWR_MGMT_1, 0x01);  // Auto select clock source to be PLL gyroscope reference if ready else
         delay(200);
-
-
-
-        // Configure Gyro and Thermometer
-        // Disable FSYNC and set thermometer and gyro bandwidth to 41 and 42 Hz, respectively;
-        // minimum delay time for this setting is 5.9 ms, which means sensor fusion update rates cannot
-        // be higher than 1 / 0.0059 = 170 Hz
-        // GYRO_DLPF_CFG = bits 2:0 = 011; this limits the sample rate to 1000 Hz for both
-        // With the MPU9250, it is possible to get gyro sample rates of 32 kHz (!), 8 kHz, or 1 kHz
-        _bus.writeByte(MPU_CONFIG, (uint8_t)GYRO_DLPF_CFG::DLPF_41HZ);
-
-        // Set sample rate = gyroscope output rate/(1 + SMPLRT_DIV)
-        _bus.writeByte(SMPLRT_DIV, (uint8_t)FIFO_SAMPLE_RATE::SMPL_200HZ);  // Use a 200 Hz rate; a rate consistent with the filter update rate
-                                                                            // determined inset in CONFIG above
-
-        // Set gyroscope full scale range
-        // Range selects FS_SEL and GFS_SEL are 0 - 3, so 2-bit values are left-shifted into positions 4:3
-        uint8_t c = _bus.readByte(GYRO_CONFIG);  // get current GYRO_CONFIG register value
-        c = c & ~0xE0;                                // Clear self-test bits [7:5]
-        c = c & ~0x03;                                // Clear Fchoice bits [1:0]
-        c = c & ~0x18;                                // Clear GYRO_FS_SEL bits [4:3]
-        c = c | (uint8_t(GYRO_FS_SEL::G250DPS) << 3); // Set 250DPS range for the gyro
-        c = c | (uint8_t(~0x3) & 0x03);               // Set Fchoice for the gyro
-        _bus.writeByte(GYRO_CONFIG, c);
-
-        // Set accelerometer full-scale range configuration
-        c = _bus.readByte(ACCEL_CONFIG); // get current ACCEL_CONFIG register value
-        c = c & ~0xE0;                                 // Clear self-test bits [7:5]
-        c = c & ~0x18;                                 // Clear ACCEL_FS_SEL bits [4:3]
-        c = c | (uint8_t(Accelerometer::Scale::_4G) << 3);  // Set 4G scale range for the accelerometer
-        _bus.writeByte(ACCEL_CONFIG, c);     // Write new ACCEL_CONFIG register value
-
-        // Set accelerometer sample rate configuration
-        // It is possible to get a 4 kHz sample rate from the accelerometer by choosing 1 for
-        // accel_fchoice_b bit [3]; in this case the bandwidth is 1.13 kHz
-        c = _bus.readByte(ACCEL_CONFIG2);  // get current ACCEL_CONFIG2 register value
-        c = c & ~0x0F;                                     // Clear accel_fchoice_b (bit 3) and A_DLPFG (bits [2:0])
-        c = c | (~(1 << 3) & 0x08);                                      // Set accel_fchoice_b to 1
-        c = c | (uint8_t(Accelerometer::DLPF::_45HZ) & 0x07);  // Set accelerometer rate to 1 kHz and bandwidth to 41 Hz
-        _bus.writeByte(ACCEL_CONFIG2, c);        // Write new ACCEL_CONFIG2 register value
-
+    
+        _t.setup();
+        _g.setup();
+        _a.setup();
+        //_m.setup();
 
         // Configure Interrupts and Bypass Enable
         // Set interrupt pin active high, push-pull, hold interrupt pin level HIGH until interrupt cleared,
@@ -363,96 +324,90 @@ public:
         delay(100);
     }
 
+    void wait()
+    {
+        while(!isConnected()) {
+            if (true) {
+                uint8_t counter = 0;
+                char buffer[50];
+                sprintf(buffer, "[%d] MPU9250::wait(); awaitng for MPU...", counter);
+                Serial.println(buffer);
+            }            
+            delay(1000);
+        }
+    }
+ 
+    bool isConnected() {
+        byte c = _bus.readByte(WHO_AM_I_MPU9250);
+        bool b = (c == MPU9250_WHOAMI_DEFAULT_VALUE);
+        //b |= (c == MPU9255_WHOAMI_DEFAULT_VALUE);
+        //b |= (c == MPU6500_WHOAMI_DEFAULT_VALUE);
+        if (true) {
+            if (b) {
+                Serial.print("MPU9250::isConnected(); MPU is connected; WHO_AM_I_MPU9250=");
+                Serial.println(c, HEX);
+            } else {
+                Serial.print("MPU9250::isConnected(); MPU is NOT connected; WHO_AM_I_MPU9250=");
+                Serial.println(c, HEX);                
+            }
+        }
+        return b;
+    }
+
     void update()
     {
         _t.update();
+        _g.update();    
         _a.update();
-        _g.update();
+        //_m.update();    
     }    
 
 private:
-    bool    _verbose;
-    bool    _hasConnected;
 
+
+
+
+// ###########################################################################################################
     class Temperature
     {
     private:
         Bus& _bus;
-        uint16_t _registers[3];
+        uint16_t _registers[1];
     public:
         Temperature(Bus& bus)
             : _bus(bus)
-            , _registers({0, 0, 0})
+            , _registers({0})
         {
         }
 
-        void read(int16_t* destination) {
-            uint8_t raw[2];                                              // x/y/z accel register data stored here
-            _bus.readBytes(TEMP_OUT_H, 2, &raw[0]);             // Read the 6 raw data registers into data array
-            destination[0] = ((int16_t)raw[0] << 8) | (int16_t)raw[1];  // Turn the MSB and LSB into a signed 16-bit value
+        void setup()
+        {
+            Serial.println("MPU9250::Temperature::setup()");
+        }
+
+        void read(int16_t* destination)
+        {
+            uint8_t raw[2];
+            _bus.readBytes(TEMP_OUT_H, 2, &raw[0]); // Read the 2 raw data registers
+            destination[0] = ((int16_t)raw[0] << 8) | (int16_t)raw[1];
         }
 
         void update()
         {
-            read(_registers);  // INT cleared on any read
+            read(_registers); 
+            float temperature = ((float)_registers[0]) / 333.87 + 21.0;  // Temperature in degrees Centigrade
+            char szTemperature[6];
+            dtostrf(temperature, 4, 2, szTemperature);
             char buffer[50];
-            sprintf(buffer, "Temperature, t:%d", _registers[0]);
+            sprintf(buffer, "Temperature, t(int):%d, t(float):%s", _registers[0], szTemperature);
             Serial.println(buffer);
         }
     };        
 
 
 
-    class Accelerometer
-    {
-    private:
-        Bus& _bus;
-        uint16_t _registers[3];
-    public:
-        Accelerometer(Bus& bus)
-            : _bus(bus)
-            , _registers({0, 0, 0})
-        {
-        }
 
-        enum class Scale : uint8_t {
-            _2G = 0,
-            _4G,
-            _8G,
-            _16G
-        };
-
-        enum class DLPF : uint8_t {
-            _218HZ_0,
-            _218HZ_1,
-            _99HZ,
-            _45HZ,
-            _21HZ,
-            _10HZ,
-            _5HZ,
-            F_420HZ,
-        };
-
-        void read(int16_t* destination) {
-            uint8_t raw[6];                                              // x/y/z accel register data stored here
-            _bus.readBytes(ACCEL_XOUT_H, 6, &raw[0]);             // Read the 6 raw data registers into data array
-            destination[0] = ((int16_t)raw[0] << 8) | (int16_t)raw[1];  // Turn the MSB and LSB into a signed 16-bit value
-            destination[1] = ((int16_t)raw[2] << 8) | (int16_t)raw[3];
-            destination[2] = ((int16_t)raw[4] << 8) | (int16_t)raw[5];
-        }
-
-        void update()
-        {
-            read(_registers);  // INT cleared on any read
-            char buffer[50];
-            sprintf(buffer, "Accelerometer, X:%d, Y:%d, Z:%d", _registers[0], _registers[1], _registers[2]);
-            Serial.println(buffer);
-        }
-    };
-
-
-
-
+// ###########################################################################################################
     class Gyroscope
     {
     private:
@@ -465,7 +420,34 @@ private:
         {
         }
 
-        void read(int16_t* destination) {
+        void setup()
+        {
+            Serial.println("MPU9250::Gyroscope::setup()");
+            //  250 DPS ;  rate=(1 kHz/5)=200 Hz ; bandwidth=20 Hz
+
+            // Configure Gyro and Thermometer
+            // Disable FSYNC and set thermometer and gyro bandwidth to 20 and 20 Hz respectively;
+            // GYRO_DLPF_CFG = bits 2:0 = b100; this limits the sample rate to 1000 Hz for both
+            _bus.writeByte(MPU_CONFIG, (uint8_t)GYRO_DLPF_CFG::DLPF_20HZ);
+
+            // Set sample rate = gyroscope output rate/(1 + SMPLRT_DIV)
+            // Use a 200 Hz rate; a rate consistent with the filter update rate determined inset in CONFIG above
+            _bus.writeByte(SMPLRT_DIV, (uint8_t)FIFO_SAMPLE_RATE::SMPL_200HZ); 
+
+            // Set gyroscope to 250DPS ad 20Hz Bandwidth
+            // Range selects FS_SEL and GFS_SEL are 0 - 3, so 2-bit values are left-shifted into positions 4:3
+            uint8_t c = _bus.readByte(GYRO_CONFIG);  // get current GYRO_CONFIG register value
+            c = c & ~0xE0;                                // Clear self-test bits [7:5]
+            c = c & ~0x18;                                // Clear GYRO_FS_SEL bits [4:3]
+            c = c & ~0x03;                                // Clear Fchoice bits [1:0]
+            c = c | (uint8_t(GYRO_FS_SEL::G250DPS) << 3); // Set 250DPS range for the gyro
+            c = c | (uint8_t(~0x3) & 0x03);               // Set Fchoice to b11 targeting keeping 20Hz in mind 
+
+            _bus.writeByte(GYRO_CONFIG, c);
+        }
+
+        void read(int16_t* destination)
+        {
             uint8_t raw[6];                                              // x/y/z accel register data stored here
             _bus.readBytes(GYRO_XOUT_H, 6, &raw[0]);             // Read the 6 raw data registers into data array
             destination[0] = ((int16_t)raw[0] << 8) | (int16_t)raw[1];  // Turn the MSB and LSB into a signed 16-bit value
@@ -484,22 +466,60 @@ private:
 
 
 
-    class Magnitometer
+
+// ###########################################################################################################
+    class Accelerometer
     {
     private:
         Bus& _bus;
         uint16_t _registers[3];
     public:
-        Magnitometer(Bus& bus)
+        Accelerometer(Bus& bus)
             : _bus(bus)
             , _registers({0, 0, 0})
         {
         }
 
-        enum Mscale {
-            MFS_14BITS = 0, // 0.6 mG per LSB
-            MFS_16BITS      // 0.15 mG per LSB
+        enum class Range : uint8_t {
+            _2G = 0,
+            _4G,
+            _8G,
+            _16G
         };
+
+        enum class DLPF : uint8_t {
+            _218HZ_0,
+            _218HZ_1,
+            _99HZ,
+            _45HZ,
+            _21HZ,
+            _10HZ,
+            _5HZ,
+            F_420HZ,
+        };
+
+        void setup()
+        {
+            Serial.println("MPU9250::Accelerometer::setup()");
+            //  4G ;  rate=(1 kHz/5)=200 Hz ; bandwidth=21 Hz
+
+            // Set accelerometer full-scale range configuration
+            uint8_t c;
+            c = _bus.readByte(ACCEL_CONFIG); // get current ACCEL_CONFIG register value
+            c = c & ~0xE0;                                 // Clear self-test bits [7:5]
+            c = c & ~0x18;                                 // Clear ACCEL_FS_SEL bits [4:3]
+            c = c | (uint8_t(Accelerometer::Range::_4G) << 3);  // Set 4G range for the accelerometer
+            _bus.writeByte(ACCEL_CONFIG, c);     // Write new ACCEL_CONFIG register value
+
+            // Set accelerometer sample rate configuration
+            // It is possible to get a 4 kHz sample rate from the accelerometer by choosing 1 for
+            // accel_fchoice_b bit [3]; in this case the bandwidth is 1.13 kHz
+            c = _bus.readByte(ACCEL_CONFIG2);  // get current ACCEL_CONFIG2 register value
+            c = c & 0x0F0;                     // Clear accel_fchoice_b (bit 3) and A_DLPFG (bits [2:0])
+            c = c | (~(1 << 3) & 0x08);        // Set accel_fchoice_b
+            c = c | (uint8_t(Accelerometer::DLPF::_21HZ));  // Set accelerometer rate to 1 kHz and bandwidth to 21 Hz
+            _bus.writeByte(ACCEL_CONFIG2, c);  // Write new ACCEL_CONFIG2 register value
+        }
 
         void read(int16_t* destination) {
             uint8_t raw[6];                                              // x/y/z accel register data stored here
@@ -507,9 +527,6 @@ private:
             destination[0] = ((int16_t)raw[0] << 8) | (int16_t)raw[1];  // Turn the MSB and LSB into a signed 16-bit value
             destination[1] = ((int16_t)raw[2] << 8) | (int16_t)raw[3];
             destination[2] = ((int16_t)raw[4] << 8) | (int16_t)raw[5];
-            destination[3] = ((int16_t)raw[6] << 8) | (int16_t)raw[7];
-            destination[4] = ((int16_t)raw[8] << 8) | (int16_t)raw[9];
-            destination[5] = ((int16_t)raw[10] << 8) | (int16_t)raw[11];
         }
 
         void update()
@@ -521,11 +538,123 @@ private:
         }
     };
 
+
+
+
+// ###########################################################################################################
+    class Magnitometer
+    {
+    private:
+        Bus& _bus;
+        uint16_t _registers[3];
+        float _biasFactory[3] {0., 0., 0.};
+        static constexpr uint8_t AK8963_ADDRESS {0x0C}; //  Address of magnetometer
+        static constexpr uint8_t AK8963_WHOAMI_DEFAULT_VALUE {0x48};
+        static constexpr uint8_t MODE {0x06};  // 0x02 for 8 Hz, 0x06 for 100 Hz continuous magnetometer data read
+
+    public:
+        enum Mscale {
+            MFS_14BITS = 0, // 0.6 mG per LSB
+            MFS_16BITS      // 0.15 mG per LSB
+        };
+
+        enum class OutputResolution : uint8_t {
+            _14BITS,
+            _16BITS
+        };
+
+        Magnitometer(Bus& bus)
+            : _bus(bus)
+            , _registers({0, 0, 0})
+        {
+        }
+
+        void setup()
+        {  
+            Serial.println("MPU9250::Gyroscope::setup()");
+
+            // First extract the factory calibration for each magnetometer axis
+            uint8_t data[3];                            // x/y/z gyro calibration data stored here
+            _bus.writeByte(AK8963_ADDRESS, AK8963_CNTL, 0x00);  // Power down magnetometer
+            delay(10);
+
+            _bus.writeByte(AK8963_ADDRESS, AK8963_CNTL, 0x0F);  // Enter Fuse ROM access mode
+            delay(10);
+
+            _bus.readBytes(AK8963_ADDRESS, AK8963_ASAX, 3, &data[0]); // Read the x-, y-, and z-axis calibration values
+
+            _biasFactory[0] = (float)(data[0] - 128) / 256. + 1.;  // Return x-axis sensitivity adjustment values, etc.
+            _biasFactory[1] = (float)(data[1] - 128) / 256. + 1.;
+            _biasFactory[2] = (float)(data[2] - 128) / 256. + 1.;
+            _bus.writeByte(AK8963_ADDRESS, AK8963_CNTL, 0x00);  // Power down magnetometer
+            delay(10);
+
+            // Configure the magnetometer for continuous read and highest resolution
+            // set Mscale bit 4 to 1 (0) to enable 16 (14) bit resolution in CNTL register,
+            // and enable continuous mode data acquisition MAG_MODE (bits [3:0]), 0010 for 8 Hz and 0110 for 100 Hz sample rates
+            _bus.writeByte(AK8963_ADDRESS, AK8963_CNTL, (uint8_t)OutputResolution::_16BITS << 4 | MODE);
+
+            if (true) {
+                Serial.print("MPU9250::Magnitometer::setup(); X-Axis sensitivity offset value:");
+                Serial.println(_biasFactory[0], 2);
+                Serial.print("MPU9250::Magnitometer::setup(); Y-Axis sensitivity offset value:");
+                Serial.println(_biasFactory[1], 2);
+                Serial.print("MPU9250::Magnitometer::setup(); A-Axis sensitivity offset value:");
+                Serial.println(_biasFactory[2], 2);
+            }
+        }
+
+        void wait()
+        {
+            while(!isConnected()) {
+                if (true) {
+                    uint8_t counter = 0;
+                    char buffer[50];
+                    sprintf(buffer, "[%d] MPU9250::Magnitometer::wait(); awaitng for MPU...", counter);
+                    Serial.println(buffer);
+                    delay(1000);
+                }            
+            }
+        }
+
+        bool isConnected() {
+            byte c = _bus.readByte(AK8963_ADDRESS, AK8963_WHO_AM_I);
+            if (true) {
+                Serial.print("AK8963 WHO AM I = ");
+                Serial.println(c, HEX);
+            }
+            if (c == AK8963_WHOAMI_DEFAULT_VALUE) {
+                Serial.print("MPU9250::Magnitometer::isConnected(); MPU is connected; AK8963_WHO_AM_I=");
+                Serial.println(c, HEX);
+            } else {
+                Serial.print("MPU9250::Magnitometer::isConnected(); MPU is NOT connected; AK8963_WHO_AM_I=");
+                Serial.println(c, HEX);                
+            }
+            return (c == AK8963_WHOAMI_DEFAULT_VALUE);
+        }
+
+        void read(int16_t* destination) {
+            uint8_t raw[6];                                              // x/y/z accel register data stored here
+            _bus.readBytes(AK8963_XOUT_L, 6, &raw[0]);             // Read the 6 raw data registers into data array
+            destination[0] = ((int16_t)raw[0] << 8) | (int16_t)raw[1];  // Turn the MSB and LSB into a signed 16-bit value
+            destination[1] = ((int16_t)raw[2] << 8) | (int16_t)raw[3];
+            destination[2] = ((int16_t)raw[4] << 8) | (int16_t)raw[5];
+        }
+
+        void update()
+        {
+            read(_registers);  // INT cleared on any read
+            char buffer[50];
+            sprintf(buffer, "Magnitometer, X:%d, Y:%d, Z:%d", _registers[0], _registers[1], _registers[2]);
+            Serial.println(buffer);
+        }
+    };
+
 public:
 
     Bus _bus;
     Temperature   _t;
-    Accelerometer _a;
     Gyroscope     _g;
-
+    Accelerometer _a;
+//    Magnitometer  _m;
 };
