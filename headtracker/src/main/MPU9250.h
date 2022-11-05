@@ -4,8 +4,7 @@
 #include <Wire.h>
 
 //Magnetometer Registers
-//#define AK8963_ADDRESS   0x0C
-//#define AK8963_ADDRESS   0x0C<<1
+#define AK8963_ADDRESS   0x0C
 #define AK8963_WHO_AM_I  0x00 // should return 0x48
 #define AK8963_INFO      0x01
 #define AK8963_ST1       0x02  // data ready status bit 0
@@ -275,7 +274,7 @@ public:
         , _t(_bus)
         , _g(_bus)
         , _a(_bus)
-//        , _m(_bus)
+        , _m(_bus)
     {
     }
 
@@ -291,12 +290,7 @@ public:
         }
 
         wait();
-        //_m.wait();
-
-
-        //acc_resolution = get_acc_resolution(setinting.accel_fs_sel);
-        //gyro_resolution = get_gyro_resolution(setting.gyro_fs_sel);
-        //mag_resolution = get_mag_resolution(setting.mag_output_bits);
+        _m.wait();
 
         // reset device
         _bus.writeByte(PWR_MGMT_1, 0x80);  // Write a one to bit 7 reset bit; toggle reset device
@@ -313,7 +307,7 @@ public:
         _t.setup();
         _g.setup();
         _a.setup();
-        //_m.setup();
+        _m.setup();
 
         // Configure Interrupts and Bypass Enable
         // Set interrupt pin active high, push-pull, hold interrupt pin level HIGH until interrupt cleared,
@@ -359,13 +353,64 @@ public:
         float t;
         _t.update(t);
   
-        float gX, gY, gZ;            
+        float gX, gY, gZ;
         _g.update(gX, gY, gZ);
   
-        float aX, aY, aZ;            
+        float aX, aY, aZ;
         _a.update(aX, aY, aZ);
-        //_m.update();    
-    }    
+
+        float mX, mY, mZ;
+        _m.update(mX, mY, mZ);
+
+        if (true) {
+            char buffer[80];
+            char szT[20];
+            dtostrf(t, 11, 4, szT);
+            sprintf(buffer,
+                    "MPU9250::T(%s)",
+                    szT);
+            Serial.println(buffer);
+        }
+        if (true) {
+            char buffer[80];
+            char szX[20];
+            char szY[20];
+            char szZ[20];
+            dtostrf(gX, 11, 4, szX);
+            dtostrf(gY, 11, 4, szY);
+            dtostrf(gZ, 11, 4, szZ);
+            sprintf(buffer,
+                    "MPU9250::G(%s, %s, %s)",
+                    szX, szY, szZ);
+            Serial.println(buffer);
+        }
+        if (true) {
+            char buffer[80];
+            char szX[20];
+            char szY[20];
+            char szZ[20];
+            dtostrf(aX, 11, 4, szX);
+            dtostrf(aY, 11, 4, szY);
+            dtostrf(aZ, 11, 4, szZ);
+            sprintf(buffer,
+                    "MPU9250::A(%s, %s, %s)",
+                    szX, szY, szZ);
+            Serial.println(buffer);
+        }
+        if (true) {
+            char buffer[80];
+            char szX[20];
+            char szY[20];
+            char szZ[20];
+            dtostrf(mX, 11, 4, szX);
+            dtostrf(mY, 11, 4, szY);
+            dtostrf(mZ, 11, 4, szZ);
+            sprintf(buffer,
+                    "MPU9250::M(%s, %s, %s)",
+                    szX, szY, szZ);
+            Serial.println(buffer);
+        }
+    }
 
 private:
 
@@ -397,7 +442,7 @@ private:
             destination[0] = ((int16_t)raw[0] << 8) | (int16_t)raw[1];
         }
 
-        void update(float temperature)
+        void update(float& temperature)
         {
             read(_registers); 
             temperature = ((float)_registers[0]) / 333.87 + 17.0;  // Temperature in degrees Centigrade
@@ -595,7 +640,7 @@ private:
             destination[2] = ((int16_t)raw[4] << 8) | (int16_t)raw[5];
         }
 
-        void update(float& x, float& y, float z)
+        void update(float& x, float& y, float& z)
         {
             read(_registers);
 
@@ -659,19 +704,13 @@ private:
     {
     private:
         Bus& _bus;
-        uint16_t _registers[3];
+        int16_t _registers[3];
+        float _resolution;
         float _biasFactory[3] {0., 0., 0.};
-        static constexpr uint8_t AK8963_ADDRESS {0x0C}; //  Address of magnetometer
         static constexpr uint8_t AK8963_WHOAMI_DEFAULT_VALUE {0x48};
-        static constexpr uint8_t MODE {0x06};  // 0x02 for 8 Hz, 0x06 for 100 Hz continuous magnetometer data read
 
     public:
-        enum Mscale {
-            MFS_14BITS = 0, // 0.6 mG per LSB
-            MFS_16BITS      // 0.15 mG per LSB
-        };
-
-        enum class OutputResolution : uint8_t {
+        enum class MAG_OUTPUT_BITS : uint8_t {
             _14BITS,
             _16BITS
         };
@@ -684,7 +723,28 @@ private:
 
         void setup()
         {  
-            Serial.println("MPU9250::Gyroscope::setup()");
+            Serial.println("MPU9250::Magnitometer::setup()");
+            // 100 Hz / 16 Bits            
+
+            if (true) {
+                char buffer[50];
+                uint8_t v =  _bus.readByte(AK8963_ADDRESS, AK8963_INFO);
+                sprintf(buffer, "INF0:%02X", v);
+            }
+            if (true) {
+                char buffer[50];
+                uint8_t v =  _bus.readByte(AK8963_ADDRESS, AK8963_ST1);
+                sprintf(buffer, "ST1:%02X", v);
+            }
+            if (true) {
+                char buffer[50];
+                uint8_t v =  _bus.readByte(AK8963_ADDRESS, AK8963_ST2);
+                sprintf(buffer, "ST2:%02X", v);
+            }
+
+            static constexpr uint8_t MODE {0x06};  // 0x02 for 8 Hz, 0x06 for 100 Hz continuous magnetometer data read
+            static constexpr MAG_OUTPUT_BITS RESOLUTION = MAG_OUTPUT_BITS::_16BITS;
+            _resolution = resolution(RESOLUTION);
 
             // First extract the factory calibration for each magnetometer axis
             uint8_t data[3];                            // x/y/z gyro calibration data stored here
@@ -705,7 +765,7 @@ private:
             // Configure the magnetometer for continuous read and highest resolution
             // set Mscale bit 4 to 1 (0) to enable 16 (14) bit resolution in CNTL register,
             // and enable continuous mode data acquisition MAG_MODE (bits [3:0]), 0010 for 8 Hz and 0110 for 100 Hz sample rates
-            _bus.writeByte(AK8963_ADDRESS, AK8963_CNTL, (uint8_t)OutputResolution::_16BITS << 4 | MODE);
+            _bus.writeByte(AK8963_ADDRESS, AK8963_CNTL, (uint8_t)RESOLUTION << 4 | MODE);
 
             if (true) {
                 Serial.print("MPU9250::Magnitometer::setup(); X-Axis sensitivity offset value:");
@@ -715,13 +775,29 @@ private:
                 Serial.print("MPU9250::Magnitometer::setup(); A-Axis sensitivity offset value:");
                 Serial.println(_biasFactory[2], 2);
             }
+
+            if (true) {
+                char buffer[50];
+                uint8_t v =  _bus.readByte(AK8963_ADDRESS, AK8963_INFO);
+                sprintf(buffer, "INF0:%02X", v);
+            }
+            if (true) {
+                char buffer[50];
+                uint8_t v =  _bus.readByte(AK8963_ADDRESS, AK8963_ST1);
+                sprintf(buffer, "ST1:%02X", v);
+            }
+            if (true) {
+                char buffer[50];
+                uint8_t v =  _bus.readByte(AK8963_ADDRESS, AK8963_ST2);
+                sprintf(buffer, "ST2:%02X", v);
+            }
         }
 
         void wait()
         {
+            uint8_t counter = 0;
             while(!isConnected()) {
                 if (true) {
-                    uint8_t counter = 0;
                     char buffer[50];
                     sprintf(buffer, "[%d] MPU9250::Magnitometer::wait(); awaitng for MPU...", counter);
                     Serial.println(buffer);
@@ -747,20 +823,65 @@ private:
         }
 
         void read(int16_t* destination) {
-            uint8_t raw[6];                                              // x/y/z accel register data stored here
-            _bus.readBytes(AK8963_XOUT_L, 6, &raw[0]);             // Read the 6 raw data registers into data array
-            destination[0] = ((int16_t)raw[0] << 8) | (int16_t)raw[1];  // Turn the MSB and LSB into a signed 16-bit value
+            uint8_t raw[6];
+            _bus.readBytes(AK8963_XOUT_L, 6, &raw[0]);
+            destination[0] = ((int16_t)raw[0] << 8) | (int16_t)raw[1];
             destination[1] = ((int16_t)raw[2] << 8) | (int16_t)raw[3];
             destination[2] = ((int16_t)raw[4] << 8) | (int16_t)raw[5];
         }
 
-        void update()
+        void update(float& x, float& y, float& z)
         {
-            read(_registers);  // INT cleared on any read
-            char buffer[50];
-            sprintf(buffer, "Magnitometer, X:%d, Y:%d, Z:%d", _registers[0], _registers[1], _registers[2]);
-            Serial.println(buffer);
+            read(_registers); // INT cleared on any read
+
+            x = _registers[0];
+            y = _registers[1];
+            z = _registers[2];
+            x = x*_resolution;
+            y = y*_resolution;
+            z = z*_resolution;
+
+            if (true) {
+                char buffer[80];
+                char szRes[20];
+                dtostrf(_resolution, 12, 8, szRes);
+                sprintf(buffer,
+                        "Magnitometer[%d, %d, %d], r:%s",
+                        _registers[0], _registers[1], _registers[2],
+                        szRes);
+                Serial.println(buffer);
+            }
+            if (true) {
+                char buffer[80];
+                char szX[20];
+                char szY[20];
+                char szZ[20];
+                dtostrf(x, 11, 4, szX);
+                dtostrf(y, 11, 4, szY);
+                dtostrf(z, 11, 4, szZ);
+                sprintf(buffer,
+                        "Magnitometer(%s, %s, %s)",
+                        szX, szY, szZ);
+                Serial.println(buffer);
+            }
         }
+
+        float resolution(const MAG_OUTPUT_BITS mag_output_bits) const
+        {
+            switch (mag_output_bits) {
+                // Possible magnetometer scales (and their register bit settings) are:
+                // 14 bit resolution (0) and 16 bit resolution (1)
+                // Proper scale to return milliGauss
+                case MAG_OUTPUT_BITS::_14BITS:
+                    return 10. * 4912. / 8190.0;
+                case MAG_OUTPUT_BITS::_16BITS:
+                    return 10. * 4912. / 32760.0;
+                default:
+                    return 0.;
+            }
+        }
+
+
     };
 
 public:
@@ -769,5 +890,5 @@ public:
     Temperature   _t;
     Gyroscope     _g;
     Accelerometer _a;
-//    Magnitometer  _m;
+    Magnitometer  _m;
 };

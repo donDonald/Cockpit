@@ -11,29 +11,34 @@ void setup()
 {
     Serial.begin(9600);
     Wire.begin();
-    lights.setup(); 
+    lights.setup();
+#if 1
+    Serial.println("SETUP");
+    mpu.setup();
+#endif
 }
 
 void loop()
 {
     lights.shift();
 
+#if 0
     static bool initMpu = true;
     if(initMpu)
     {
-        //initMpu = false;
-        Serial.println("AAAAAAAAAAAAAAAAAAAAAA.4");
+        initMpu = false;
+        Serial.println("SETUP AAAAAAAAAAAAAAAAAAAAAA");
         mpu.setup();
     }
-
-    mpu.update();
+#endif
 
     if (true) {
+        static uint8_t counter = 0;
         char buffer[50];
-        sprintf(buffer, "[%d] Hello world!", counter);
+        sprintf(buffer, "UPDATING[%d]", ++counter);        
         Serial.println(buffer);
-        ++counter;
     }
+    mpu.update();
 
     delay(3000);
 
