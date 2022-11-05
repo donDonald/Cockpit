@@ -473,14 +473,16 @@ private:
     private:
         Bus& _bus;
         uint16_t _registers[3];
+        float _resolution;
     public:
         Accelerometer(Bus& bus)
             : _bus(bus)
             , _registers({0, 0, 0})
+            , _resolution(0)
         {
         }
 
-        enum class Range : uint8_t {
+        enum class ACCEL_FS_SEL : uint8_t {
             _2G = 0,
             _4G,
             _8G,
@@ -501,14 +503,18 @@ private:
         void setup()
         {
             Serial.println("MPU9250::Accelerometer::setup()");
-            //  4G ;  rate=(1 kHz/5)=200 Hz ; bandwidth=21 Hz
+            //  4G ;  rate=(1 kHz/5)=200 Hz; bandwidth=21 Hz
+
+            static constexpr Accelerometer::ACCEL_FS_SEL range = Accelerometer::ACCEL_FS_SEL::_4G;
+            static constexpr Accelerometer::DLPF dlpf = Accelerometer::DLPF::_21HZ;
+            _resolution = resolution(range);
 
             // Set accelerometer full-scale range configuration
             uint8_t c;
             c = _bus.readByte(ACCEL_CONFIG); // get current ACCEL_CONFIG register value
             c = c & ~0xE0;                                 // Clear self-test bits [7:5]
             c = c & ~0x18;                                 // Clear ACCEL_FS_SEL bits [4:3]
-            c = c | (uint8_t(Accelerometer::Range::_4G) << 3);  // Set 4G range for the accelerometer
+            c = c | (uint8_t(range) << 3);  // Set 4G range for the accelerometer
             _bus.writeByte(ACCEL_CONFIG, c);     // Write new ACCEL_CONFIG register value
 
             // Set accelerometer sample rate configuration
@@ -517,7 +523,7 @@ private:
             c = _bus.readByte(ACCEL_CONFIG2);  // get current ACCEL_CONFIG2 register value
             c = c & 0x0F0;                     // Clear accel_fchoice_b (bit 3) and A_DLPFG (bits [2:0])
             c = c | (~(1 << 3) & 0x08);        // Set accel_fchoice_b
-            c = c | (uint8_t(Accelerometer::DLPF::_21HZ));  // Set accelerometer rate to 1 kHz and bandwidth to 21 Hz
+            c = c | uint8_t(dlpf);  // Set accelerometer rate to 1 kHz and bandwidth to 21 Hz
             _bus.writeByte(ACCEL_CONFIG2, c);  // Write new ACCEL_CONFIG2 register value
         }
 
@@ -531,11 +537,48 @@ private:
 
         void update()
         {
-            read(_registers);  // INT cleared on any read
-            char buffer[50];
-            sprintf(buffer, "Accelerometer, X:%d, Y:%d, Z:%d", _registers[0], _registers[1], _registers[2]);
-            Serial.println(buffer);
+            read(_registers);
+            float x = ((float)_registers[0]) * _resolution;
+            float y = ((float)_registers[1]) * _resolution;
+            float z = ((float)_registers[2]) * _resolution;
+
+            if (true) {
+                char buffer[100];
+                char szX[10];
+                char szY[10];
+                char szZ[10];
+                char szRes[20];
+                dtostrf(x, 8, 4, szX);
+                dtostrf(y, 8, 4, szY);
+                dtostrf(z, 8, 4, szZ);
+                dtostrf(_resolution, 12, 8, szRes);
+                sprintf(buffer,
+                        "Accelerometer, X:%s, Y:%s, Z:%s, [%d, %d, %d], res:%s",
+                        szX, szY, szZ,
+                        _registers[0], _registers[1], _registers[2],
+                        szRes);
+                Serial.println(buffer);
+            }
         }
+
+        float resolution(const ACCEL_FS_SEL accel_af_sel) const {
+            switch (accel_af_sel) {
+                // Possible accelerometer scales (and their register bit settings) are:
+                // 2 Gs (00), 4 Gs (01), 8 Gs (10), and 16 Gs  (11).
+                // Here's a bit of an algorith to calculate DPS/(ADC tick) based on that 2-bit value:
+                case ACCEL_FS_SEL::_2G :
+                    return 2.0 / 32768.0;
+                case ACCEL_FS_SEL::_4G:
+                    return 4.0 / 32768.0;
+                case ACCEL_FS_SEL::_8G:
+                    return 8.0 / 32768.0;
+                case ACCEL_FS_SEL::_16G:
+                    return 16.0 / 32768.0;
+                default:
+                    return 0.;
+            }
+        }
+
     };
 
 
