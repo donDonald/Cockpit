@@ -356,9 +356,12 @@ public:
 
     void update()
     {
-        _t.update();
-        _g.update();    
-        _a.update();
+        float t;
+        _t.update(t);
+        _g.update();
+  
+        float aX, aY, aZ;            
+        _a.update(aX, aY, aZ);
         //_m.update();    
     }    
 
@@ -392,15 +395,18 @@ private:
             destination[0] = ((int16_t)raw[0] << 8) | (int16_t)raw[1];
         }
 
-        void update()
+        void update(float temperature)
         {
             read(_registers); 
-            float temperature = ((float)_registers[0]) / 333.87 + 21.0;  // Temperature in degrees Centigrade
-            char szTemperature[6];
-            dtostrf(temperature, 4, 2, szTemperature);
-            char buffer[50];
-            sprintf(buffer, "Temperature, t(int):%d, t(float):%s", _registers[0], szTemperature);
-            Serial.println(buffer);
+            temperature = ((float)_registers[0]) / 333.87 + 17.0;  // Temperature in degrees Centigrade
+
+            if (true) {
+                char buffer[80];
+                char szTemperature[6];
+                dtostrf(temperature, 6, 2, szTemperature);
+                sprintf(buffer, "Temperature, t(int):%d, t(float):%s", _registers[0], szTemperature);
+                Serial.println(buffer);
+            }
         }
     };        
 
@@ -472,7 +478,7 @@ private:
     {
     private:
         Bus& _bus;
-        uint16_t _registers[3];
+        int16_t _registers[3];
         float _resolution;
     public:
         Accelerometer(Bus& bus)
@@ -535,28 +541,38 @@ private:
             destination[2] = ((int16_t)raw[4] << 8) | (int16_t)raw[5];
         }
 
-        void update()
+        void update(float& x, float& y, float z)
         {
             read(_registers);
-            float x = ((float)_registers[0]) * _resolution;
-            float y = ((float)_registers[1]) * _resolution;
-            float z = ((float)_registers[2]) * _resolution;
+
+            x = _registers[0];
+            y = _registers[1];
+            z = _registers[2];
+            x = x*_resolution;
+            y = y*_resolution;
+            z = z*_resolution;
 
             if (true) {
-                char buffer[100];
-                char szX[10];
-                char szY[10];
-                char szZ[10];
+                char buffer[80];
                 char szRes[20];
-                dtostrf(x, 8, 4, szX);
-                dtostrf(y, 8, 4, szY);
-                dtostrf(z, 8, 4, szZ);
                 dtostrf(_resolution, 12, 8, szRes);
                 sprintf(buffer,
-                        "Accelerometer, X:%s, Y:%s, Z:%s, [%d, %d, %d], res:%s",
-                        szX, szY, szZ,
+                        "Accelerometer, [%d, %d, %d], r:%s",
                         _registers[0], _registers[1], _registers[2],
                         szRes);
+                Serial.println(buffer);
+            }
+            if (true) {
+                char buffer[80];
+                char szX[20];
+                char szY[20];
+                char szZ[20];
+                dtostrf(x, 11, 4, szX);
+                dtostrf(y, 11, 4, szY);
+                dtostrf(z, 11, 4, szZ);
+                sprintf(buffer,
+                        "Accelerometer, x:%s, y:%s, z:%s",
+                        szX, szY, szZ);
                 Serial.println(buffer);
             }
         }
