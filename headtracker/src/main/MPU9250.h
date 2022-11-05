@@ -358,7 +358,9 @@ public:
     {
         float t;
         _t.update(t);
-        _g.update();
+  
+        float gX, gY, gZ;            
+        _g.update(gX, gY, gZ);
   
         float aX, aY, aZ;            
         _a.update(aX, aY, aZ);
@@ -418,7 +420,8 @@ private:
     {
     private:
         Bus& _bus;
-        uint16_t _registers[3];
+        int16_t _registers[3];
+        float _resolution;
     public:
         Gyroscope(Bus& bus)
             : _bus(bus)
@@ -431,10 +434,14 @@ private:
             Serial.println("MPU9250::Gyroscope::setup()");
             //  250 DPS ;  rate=(1 kHz/5)=200 Hz ; bandwidth=20 Hz
 
+            static constexpr GYRO_FS_SEL range = GYRO_FS_SEL::G250DPS;
+            static constexpr GYRO_DLPF_CFG dlpf = GYRO_DLPF_CFG::DLPF_20HZ;
+            _resolution = resolution(range);
+            
             // Configure Gyro and Thermometer
             // Disable FSYNC and set thermometer and gyro bandwidth to 20 and 20 Hz respectively;
             // GYRO_DLPF_CFG = bits 2:0 = b100; this limits the sample rate to 1000 Hz for both
-            _bus.writeByte(MPU_CONFIG, (uint8_t)GYRO_DLPF_CFG::DLPF_20HZ);
+            _bus.writeByte(MPU_CONFIG, (uint8_t)dlpf);
 
             // Set sample rate = gyroscope output rate/(1 + SMPLRT_DIV)
             // Use a 200 Hz rate; a rate consistent with the filter update rate determined inset in CONFIG above
@@ -446,7 +453,7 @@ private:
             c = c & ~0xE0;                                // Clear self-test bits [7:5]
             c = c & ~0x18;                                // Clear GYRO_FS_SEL bits [4:3]
             c = c & ~0x03;                                // Clear Fchoice bits [1:0]
-            c = c | (uint8_t(GYRO_FS_SEL::G250DPS) << 3); // Set 250DPS range for the gyro
+            c = c | (uint8_t(range) << 3); // Set 250DPS range for the gyro
             c = c | (uint8_t(~0x3) & 0x03);               // Set Fchoice to b11 targeting keeping 20Hz in mind 
 
             _bus.writeByte(GYRO_CONFIG, c);
@@ -454,19 +461,66 @@ private:
 
         void read(int16_t* destination)
         {
-            uint8_t raw[6];                                              // x/y/z accel register data stored here
-            _bus.readBytes(GYRO_XOUT_H, 6, &raw[0]);             // Read the 6 raw data registers into data array
-            destination[0] = ((int16_t)raw[0] << 8) | (int16_t)raw[1];  // Turn the MSB and LSB into a signed 16-bit value
+            uint8_t raw[6];
+            _bus.readBytes(GYRO_XOUT_H, 6, &raw[0]); // Read the 6 raw data registers into data array
+            destination[0] = ((int16_t)raw[0] << 8) | (int16_t)raw[1];
             destination[1] = ((int16_t)raw[2] << 8) | (int16_t)raw[3];
             destination[2] = ((int16_t)raw[4] << 8) | (int16_t)raw[5];
         }
 
-        void update()
+        void update(float& x, float& y, float& z)
         {
-            read(_registers);  // INT cleared on any read
-            char buffer[50];
-            sprintf(buffer, "Gyroscope, X:%d, Y:%d, Z:%d", _registers[0], _registers[1], _registers[2]);
-            Serial.println(buffer);
+            read(_registers); // INT cleared on any read
+
+            x = _registers[0];
+            y = _registers[1];
+            z = _registers[2];
+            x = x*_resolution;
+            y = y*_resolution;
+            z = z*_resolution;
+
+            if (true) {
+                char buffer[80];
+                char szRes[20];
+                dtostrf(_resolution, 12, 8, szRes);
+                sprintf(buffer,
+                        "Gyroscope[%d, %d, %d], r:%s",
+                        _registers[0], _registers[1], _registers[2],
+                        szRes);
+                Serial.println(buffer);
+            }
+            if (true) {
+                char buffer[80];
+                char szX[20];
+                char szY[20];
+                char szZ[20];
+                dtostrf(x, 11, 4, szX);
+                dtostrf(y, 11, 4, szY);
+                dtostrf(z, 11, 4, szZ);
+                sprintf(buffer,
+                        "Gyroscope(%s, %s, %s)",
+                        szX, szY, szZ);
+                Serial.println(buffer);
+            }
+        }
+
+        float resolution(const GYRO_FS_SEL gyro_fs_sel) const
+        {
+            switch (gyro_fs_sel) {
+                // Possible gyro scales (and their register bit settings) are:
+                // 250 DPS (00), 500 DPS (01), 1000 DPS (10), and 2000 DPS  (11).
+                // Here's a bit of an algorith to calculate DPS/(ADC tick) based on that 2-bit value:
+                case GYRO_FS_SEL::G250DPS:
+                    return 250.0 / 32768.0;
+                case GYRO_FS_SEL::G500DPS:
+                    return 500.0 / 32768.0;
+                case GYRO_FS_SEL::G1000DPS:
+                    return 1000.0 / 32768.0;
+                case GYRO_FS_SEL::G2000DPS:
+                    return 2000.0 / 32768.0;
+                default:
+                    return 0.;
+            }          
         }
     };
 
@@ -557,7 +611,7 @@ private:
                 char szRes[20];
                 dtostrf(_resolution, 12, 8, szRes);
                 sprintf(buffer,
-                        "Accelerometer, [%d, %d, %d], r:%s",
+                        "Accelerometer[%d, %d, %d], r:%s",
                         _registers[0], _registers[1], _registers[2],
                         szRes);
                 Serial.println(buffer);
@@ -571,7 +625,7 @@ private:
                 dtostrf(y, 11, 4, szY);
                 dtostrf(z, 11, 4, szZ);
                 sprintf(buffer,
-                        "Accelerometer, x:%s, y:%s, z:%s",
+                        "Accelerometer(%s, %s, %s)",
                         szX, szY, szZ);
                 Serial.println(buffer);
             }
