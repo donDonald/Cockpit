@@ -23,8 +23,36 @@ After this, reboot your device and open Arduino IDE.
 10-ти осевой модуль датчика отслеживания CJMCU MPU9250 10DOF
 
 {
-    https://www.youtube.com/watch?v=gGNUtTtGCj0  (1:41:??) - Подключение акселерометра
-    last = 1:47:??;
+    [https://www.youtube.com/watch?v=gGNUtTtGCj0](Самодельный Head Tracker на STM32. Описание идеи устройства и начало разработки. Аксель LSM303DLHC)
+    {
+        last(1:47:??)
+
+
+        time(1:41:??) - Connecting accelerometer
+            His ACC setup:
+                           200Hz
+                           2G
+                           16 bits
+                           [-32768: +32767]
+                           Reference data[144, 336, 16588]
+                           My data[-26, 1774, 15936]
+                           16013 - fits into 2G scale Z
+        time(2:36:27) - Identifying axises for Accelerometer(Have to check with mines!)
+
+
+        time(2:42:00) - Connecting magnetometer
+            His MAG setup: 
+                           Continious MODE!
+                           220Hz
+                           +/-1.3Gauss
+                           12 bits
+                           -[2048:2047]
+                           Reference data[-126, -473, -627]
+                           My data[23, 359, 205] (34.4860,  538.2808, 307.3748)
+                           My data[-45, 59, -281] (-67.4725, 88.4640, -421.3285)
+
+        time(3:01:45) - Charts\draw9ngs for A and M vectors
+    }
 }
 
 Либа на гитхабе для этого чипа: (https://github.com/hideakitai/MPU9250.git)[https://github.com/hideakitai/MPU9250]

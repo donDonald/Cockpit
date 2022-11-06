@@ -152,6 +152,17 @@
 static constexpr uint8_t MPU9250_DEFAULT_ADDRESS {0x68};  // Device address when ADO = 0
 static constexpr uint8_t MPU9250_WHOAMI_DEFAULT_VALUE {0x71};
 
+//#define LOG_MPU_T_UPDATE 1
+//#define LOG_MPU_G_UPDATE 1
+#define LOG_MPU_A_UPDATE 1
+#define LOG_MPU_M_UPDATE 1
+
+//#define LOG_T_UPDATE 1
+//#define LOG_G_UPDATE 1
+#define LOG_A_UPDATE 1
+#define LOG_M_UPDATE 1
+//#define LOG_M_READ   1
+
 TwoWire& _wire = Wire;
 
 class Bus
@@ -362,6 +373,7 @@ public:
         float mX, mY, mZ;
         _m.update(mX, mY, mZ);
 
+#ifdef LOG_MPU_T_UPDATE
         if (true) {
             char buffer[80];
             char szT[20];
@@ -371,6 +383,8 @@ public:
                     szT);
             Serial.println(buffer);
         }
+#endif
+#ifdef LOG_MPU_G_UPDATE
         if (true) {
             char buffer[80];
             char szX[20];
@@ -384,6 +398,8 @@ public:
                     szX, szY, szZ);
             Serial.println(buffer);
         }
+#endif
+#ifdef LOG_MPU_A_UPDATE
         if (true) {
             char buffer[80];
             char szX[20];
@@ -397,6 +413,8 @@ public:
                     szX, szY, szZ);
             Serial.println(buffer);
         }
+#endif
+#ifdef LOG_MPU_M_UPDATE
         if (true) {
             char buffer[80];
             char szX[20];
@@ -410,6 +428,7 @@ public:
                     szX, szY, szZ);
             Serial.println(buffer);
         }
+#endif
     }
 
 private:
@@ -447,13 +466,15 @@ private:
             read(_registers); 
             temperature = ((float)_registers[0]) / 333.87 + 17.0;  // Temperature in degrees Centigrade
 
-            if (true) {
+#ifdef LOG_T_UPDATE
+            if (1) {
                 char buffer[80];
                 char szTemperature[6];
                 dtostrf(temperature, 6, 2, szTemperature);
                 sprintf(buffer, "Temperature, t(int):%d, t(float):%s", _registers[0], szTemperature);
                 Serial.println(buffer);
             }
+#endif
         }
     };        
 
@@ -524,7 +545,8 @@ private:
             y = y*_resolution;
             z = z*_resolution;
 
-            if (true) {
+#ifdef LOG_G_UPDATE
+            if (1) {
                 char buffer[80];
                 char szRes[20];
                 dtostrf(_resolution, 12, 8, szRes);
@@ -534,7 +556,7 @@ private:
                         szRes);
                 Serial.println(buffer);
             }
-            if (true) {
+            if (1) {
                 char buffer[80];
                 char szX[20];
                 char szY[20];
@@ -546,7 +568,9 @@ private:
                         "Gyroscope(%s, %s, %s)",
                         szX, szY, szZ);
                 Serial.println(buffer);
+            
             }
+#endif
         }
 
         float resolution(const GYRO_FS_SEL gyro_fs_sel) const
@@ -608,9 +632,9 @@ private:
         void setup()
         {
             Serial.println("MPU9250::Accelerometer::setup()");
-            //  4G ;  rate=(1 kHz/5)=200 Hz; bandwidth=21 Hz
+            //  2G ;  rate=(1 kHz/5)=200 Hz; bandwidth=21 Hz
 
-            static constexpr Accelerometer::ACCEL_FS_SEL range = Accelerometer::ACCEL_FS_SEL::_4G;
+            static constexpr Accelerometer::ACCEL_FS_SEL range = Accelerometer::ACCEL_FS_SEL::_2G;
             static constexpr Accelerometer::DLPF dlpf = Accelerometer::DLPF::_21HZ;
             _resolution = resolution(range);
 
@@ -619,7 +643,7 @@ private:
             c = _bus.readByte(ACCEL_CONFIG); // get current ACCEL_CONFIG register value
             c = c & ~0xE0;                                 // Clear self-test bits [7:5]
             c = c & ~0x18;                                 // Clear ACCEL_FS_SEL bits [4:3]
-            c = c | (uint8_t(range) << 3);  // Set 4G range for the accelerometer
+            c = c | (uint8_t(range) << 3);  // Set range for the accelerometer
             _bus.writeByte(ACCEL_CONFIG, c);     // Write new ACCEL_CONFIG register value
 
             // Set accelerometer sample rate configuration
@@ -651,7 +675,8 @@ private:
             y = y*_resolution;
             z = z*_resolution;
 
-            if (true) {
+#ifdef LOG_A_UPDATE
+            if (1) {
                 char buffer[80];
                 char szRes[20];
                 dtostrf(_resolution, 12, 8, szRes);
@@ -661,7 +686,7 @@ private:
                         szRes);
                 Serial.println(buffer);
             }
-            if (true) {
+            if (1) {
                 char buffer[80];
                 char szX[20];
                 char szY[20];
@@ -674,6 +699,7 @@ private:
                         szX, szY, szZ);
                 Serial.println(buffer);
             }
+#endif
         }
 
         float resolution(const ACCEL_FS_SEL accel_af_sel) const {
@@ -729,20 +755,20 @@ private:
             if (true) {
                 char buffer[50];
                 uint8_t v =  _bus.readByte(AK8963_ADDRESS, AK8963_INFO);
-                sprintf(buffer, "INF0:%02X", v);
+                sprintf(buffer, "AK8963::INF0:%02X", v);
             }
             if (true) {
                 char buffer[50];
                 uint8_t v =  _bus.readByte(AK8963_ADDRESS, AK8963_ST1);
-                sprintf(buffer, "ST1:%02X", v);
+                sprintf(buffer, "AK8963::ST1:%02X", v);
             }
             if (true) {
                 char buffer[50];
                 uint8_t v =  _bus.readByte(AK8963_ADDRESS, AK8963_ST2);
-                sprintf(buffer, "ST2:%02X", v);
+                sprintf(buffer, "AK8963::ST2:%02X", v);
             }
 
-            static constexpr uint8_t MODE {0x06};  // 0x02 for 8 Hz, 0x06 for 100 Hz continuous magnetometer data read
+            static constexpr uint8_t MODE {0x06};  // 0x01 for Single measurement mode, 0x02 for 8 Hz, 0x06 for 100 Hz continuous magnetometer data read
             static constexpr MAG_OUTPUT_BITS RESOLUTION = MAG_OUTPUT_BITS::_16BITS;
             _resolution = resolution(RESOLUTION);
 
@@ -761,11 +787,12 @@ private:
             _biasFactory[2] = (float)(data[2] - 128) / 256. + 1.;
             _bus.writeByte(AK8963_ADDRESS, AK8963_CNTL, 0x00);  // Power down magnetometer
             delay(10);
-
+/*
             // Configure the magnetometer for continuous read and highest resolution
             // set Mscale bit 4 to 1 (0) to enable 16 (14) bit resolution in CNTL register,
             // and enable continuous mode data acquisition MAG_MODE (bits [3:0]), 0010 for 8 Hz and 0110 for 100 Hz sample rates
             _bus.writeByte(AK8963_ADDRESS, AK8963_CNTL, (uint8_t)RESOLUTION << 4 | MODE);
+*/
 
             if (true) {
                 Serial.print("MPU9250::Magnitometer::setup(); X-Axis sensitivity offset value:");
@@ -779,17 +806,17 @@ private:
             if (true) {
                 char buffer[50];
                 uint8_t v =  _bus.readByte(AK8963_ADDRESS, AK8963_INFO);
-                sprintf(buffer, "INF0:%02X", v);
+                sprintf(buffer, "AK8963::INF0:%02X", v);
             }
             if (true) {
                 char buffer[50];
                 uint8_t v =  _bus.readByte(AK8963_ADDRESS, AK8963_ST1);
-                sprintf(buffer, "ST1:%02X", v);
+                sprintf(buffer, "AK8963::ST1:%02X", v);
             }
             if (true) {
                 char buffer[50];
                 uint8_t v =  _bus.readByte(AK8963_ADDRESS, AK8963_ST2);
-                sprintf(buffer, "ST2:%02X", v);
+                sprintf(buffer, "AK8963::ST2:%02X", v);
             }
         }
 
@@ -823,11 +850,45 @@ private:
         }
 
         void read(int16_t* destination) {
-            uint8_t raw[6];
-            _bus.readBytes(AK8963_XOUT_L, 6, &raw[0]);
-            destination[0] = ((int16_t)raw[0] << 8) | (int16_t)raw[1];
-            destination[1] = ((int16_t)raw[2] << 8) | (int16_t)raw[3];
-            destination[2] = ((int16_t)raw[4] << 8) | (int16_t)raw[5];
+            _bus.writeByte(AK8963_ADDRESS, AK8963_CNTL, 0x11); // Start easurement
+
+            uint8_t cntl, st1;
+#ifdef LOG_M_READ
+            if (1) {
+                cntl = _bus.readByte(AK8963_ADDRESS, AK8963_CNTL);
+                Serial.print("CNTL:"); Serial.println(cntl, BIN);
+            }
+#endif
+
+            st1 = _bus.readByte(AK8963_ADDRESS, AK8963_ST1);
+            while( !(st1 & 0x01) ) { // Wait for ST1.DRDY             
+                delay(5);
+                st1 = _bus.readByte(AK8963_ADDRESS, AK8963_ST1);
+            }
+
+            uint8_t raw[6+1]; // + ST2 to reset ST1.DRDY
+            _bus.readBytes(AK8963_ADDRESS, AK8963_XOUT_L, 7, &raw[0]);
+            destination[0] = ((int16_t)raw[1] << 8) | (int16_t)raw[0];
+            destination[1] = ((int16_t)raw[3] << 8) | (int16_t)raw[2];
+            destination[2] = ((int16_t)raw[5] << 8) | (int16_t)raw[4];
+
+#ifdef LOG_M_READ
+            if (1) {
+                Serial.print("XOUT_L:"); Serial.println(raw[0], BIN);
+                Serial.print("XOUT_H:"); Serial.println(raw[1], BIN);
+                Serial.print("YOUT_L:"); Serial.println(raw[2], BIN);
+                Serial.print("YOUT_H:"); Serial.println(raw[3], BIN);
+                Serial.print("ZOUT_L:"); Serial.println(raw[4], BIN);
+                Serial.print("ZOUT_H:"); Serial.println(raw[5], BIN);
+                Serial.print("ST2:"); Serial.println(raw[6], BIN);
+
+                st1 = _bus.readByte(AK8963_ADDRESS, AK8963_ST1);
+                Serial.print("ST1:"); Serial.println(st1, BIN);
+
+                cntl = _bus.readByte(AK8963_ADDRESS, AK8963_CNTL);
+                Serial.print("CNTL:"); Serial.println(cntl, BIN);
+            }
+#endif
         }
 
         void update(float& x, float& y, float& z)
@@ -841,7 +902,8 @@ private:
             y = y*_resolution;
             z = z*_resolution;
 
-            if (true) {
+#ifdef LOG_M_UPDATE
+            if (1) {           
                 char buffer[80];
                 char szRes[20];
                 dtostrf(_resolution, 12, 8, szRes);
@@ -850,8 +912,8 @@ private:
                         _registers[0], _registers[1], _registers[2],
                         szRes);
                 Serial.println(buffer);
-            }
-            if (true) {
+            } 
+            if (1) {           
                 char buffer[80];
                 char szX[20];
                 char szY[20];
@@ -864,6 +926,7 @@ private:
                         szX, szY, szZ);
                 Serial.println(buffer);
             }
+#endif
         }
 
         float resolution(const MAG_OUTPUT_BITS mag_output_bits) const
