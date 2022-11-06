@@ -1,0 +1,22 @@
+
+.chartAxis path,
+.chartAxis line {
+    fill: none;
+    stroke: #000;
+    shape-rendering: crispEdges;
+}
+
+.chartAxis text {
+    font: 10px sans-serif;
+}
+
+.chartAxisLabel text {
+    font: 15px sans-serif;
+}
+
+.line {
+    fill: none;
+    stroke: steelblue;
+    stroke-width: 1.5px;
+}
+

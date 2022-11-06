@@ -1,23 +1,42 @@
 
 #video
 
+# Prerequisites
+* Ubuntu 20.04
 
-# Arduino IDE
-https://amperka.ru/page/arduino-ide
-https://github.com/arduino/arduino-ide/releases/
 
+# Installing Arduino IDE
+
+To install IDE:
 ```
 $ wget https://github.com/arduino/arduino-ide/releases/download/2.0.0/arduino-ide_2.0.0_Linux_64bit.zip
 $ unzip ./arduino-ide_2.0.0_Linux_64bit.zip
 ```
+Unzipped folder shall arduino-ide executable.
 
+
+
+
+Add your user to *dialout* for accessing /dev/ttyACM0
+```
+$ sudo usermod -a -G dialout $USER
+```
+
+Check that /dev/ttyACM0, it shall 
+```
+$ ls -al /dev/ttyACM0
+crw-rw---- 1 root dialout 166, 0 ноя  7 21:16 /dev/ttyACM0
+```
 
 avrdude: ser_open(): can't open device "/dev/ttyACM0": Permission denied
 Failed uploading: uploading error: exit status 1
-```
-$ sudo usermod -a -G dialout $USER
-````
-After this, reboot your device and open Arduino IDE.
+
+Reboot your device and open Arduino IDE.
+
+### Refefences
+* https://amperka.ru/page/arduino-ide
+* https://github.com/arduino/arduino-ide/releases/
+
 
 # Подключение Акселерометра и Магнитометра (via I2C - SCL/SDA )
 10-ти осевой модуль датчика отслеживания CJMCU MPU9250 10DOF

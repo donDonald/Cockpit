@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TGAMChart prototype</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/> 
+    <script src="./3rd/d3.v3.min.js" charset="utf-8"></script>
+    <link href="../Charts.css" rel="stylesheet" type="text/css" />
+
+    <script>
+        var api = {};
+        window.assert = function(condition, message) {
+            if (!condition) {
+                const stack = new Error().stack;
+                console.log(message || "Assertion failed");
+                console.log("PRINTING CALL STACK:");
+                console.log(stack);
+                throw message || "Assertion failed";
+            }
+        }
+
+        window.assert.equal = function(a, b, message) {
+            if (a !== b) {
+                const stack = new Error().stack;
+                console.log(message || "Assertion failed");
+                console.log("PRINTING CALL STACK:");
+                console.log(stack);
+                throw message || "Assertion failed";
+            }
+        }
+    </script>
+
+    <link href="../TGAMChart.css" rel="stylesheet" type="text/css" />
+    <script type="text/javascript" src="../TGAMChart.js"></script>
+    <script type="text/javascript" src="../adapter.js"></script>
+
+    <style>
+        .periodsDelimeter {
+            height:40px;
+            background-color: #f4e542;
+        }
+        .chartWrapper {
+            width:1240px;
+            padding-top:10px;
+            padding-bottom:10px;
+        }
+        .chartEven {
+            background-color: #E6E6FA;
+        }
+        .chartOdd {
+            background-color: #FFF0F5;
+        }
+    </style>
+</head>
+
+<body>
+
+<div>
+    <div class='periodsDelimeter'>Daily periods</div>
+    <div class='chartWrapper chartEven'>
+        <div>Daily, 1 period</div>
+        <div id='DailyChart1' style='height:200px'></div>
+    </div>
+</div>
+
+<script>
+
+    const data = [
+        {x:1, y:1, z:1},
+        {x:1, y:2, z:2},
+        {x:100, y:3, z:3}
+    ];
+
+    const chartElement = document.getElementById('DailyChart1');
+    const chart = new TGAMChart(
+        'DailyChart1',
+        chartElement.offsetWidth,
+        chartElement.offsetHeight,
+        data,
+        'Zzz');
+
+
+</script>
+
+</body>
+</html>
+
