@@ -7,7 +7,8 @@ class Lights
 public:
     static constexpr uint8_t COUNT = 2;
 
-    enum {
+    enum
+    {
         RED = 0,
         YELLOW
     };
@@ -18,7 +19,8 @@ public:
 
     void setup()
     {
-        for(uint8_t i=0; i<COUNT; ++i) {
+        for(uint8_t i=0; i<COUNT; ++i)
+        {
             _leds[i].setup();
         }
     }
@@ -28,7 +30,8 @@ public:
         static uint8_t counter = 0;
         uint8_t rem = counter % COUNT;
         ++counter;
-        for(uint8_t i=0; i<COUNT; ++i) {
+        for(uint8_t i=0; i<COUNT; ++i)
+        {
             _leds[i].setOff();
         }
         _leds[rem].setOn();

@@ -1,46 +1,36 @@
-#include <Wire.h>
 #include "Types.h"
 #include "Lights.h"
 #include "MPU9250.h"
 
 uint8_t counter = 0;
 Lights lights;
-MPU9250 mpu;
+Bus bus(MPU9250_DEFAULT_ADDRESS);
+MPU9250 mpu(bus);
 
 void setup()
 {
     Serial.begin(9600);
-    Wire.begin();
+    while (!Serial); // Wait for Serial Monitor to connect
+    bus.start();
     lights.setup();
-#if 1
-    Serial.println("SETUP");
     mpu.setup();
-#endif
 }
 
 void loop()
 {
+    //Types::printSizeof();
     lights.shift();
 
-#if 0
-    static bool initMpu = true;
-    if(initMpu)
+#if 1
+    if (false)
     {
-        initMpu = false;
-        Serial.println("SETUP AAAAAAAAAAAAAAAAAAAAAA");
-        mpu.setup();
-    }
-#endif
-
-    if (true) {
         static uint8_t counter = 0;
         char buffer[50];
         sprintf(buffer, "UPDATING[%d]", ++counter);        
         Serial.println(buffer);
     }
     mpu.update();
+#endif
 
     delay(3000);
-
-    //Types::printSizeof();
 }

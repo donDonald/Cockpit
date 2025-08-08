@@ -28,11 +28,4 @@ public:
         sprintf(buffer, "sizeof(bool):%d", sizeof(bool));
         Serial.println(buffer);
     }
-
-//    static int sprintf(char *__s, const char *__fmt, ...)
-//    {
-//        char buffer[50];
-//        return ::sprintf(buffer, __fmt);
-//    }
-
 };
