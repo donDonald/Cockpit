@@ -205,11 +205,13 @@ http://bit.ly/GT_Fan_Play_All_Playlists
 
 
 
- - [Как сделать Инерционный трекер для Гонок и не только.......](https://www.youtube.com/watch?v=hKkj5Z_FWKo)\
- - [X-plane 11 | P3D | DCS world | WarThunder | 5ти осевой трекер за 1000 рублей | июнь 2020](https://www.youtube.com/watch?v=RhbhPYj6SKo)\
- - https://www.sites.google.com/site/diyheadtracking/home/5dof-tracker/razor-ahrs-5dof-20190111(https://www.sites.google.com/site/diyheadtracking/home/5dof-tracker)
- - https://github.com/arkhipenko/MPU9250
+* [Как сделать Инерционный трекер для Гонок и не только.......](https://www.youtube.com/watch?v=hKkj5Z_FWKo)\
+* [X-plane 11 | P3D | DCS world | WarThunder | 5ти осевой трекер за 1000 рублей | июнь 2020](https://www.youtube.com/watch?v=RhbhPYj6SKo)\
+* https://www.sites.google.com/site/diyheadtracking/home/5dof-tracker/razor-ahrs-5dof-20190111(https://www.sites.google.com/site/diyheadtracking/home/5dof-tracker)
+* https://github.com/arkhipenko/MPU9250
 
+
+[ExampleA files](docs/ExampleA)
 
 
 
